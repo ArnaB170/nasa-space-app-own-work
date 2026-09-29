@@ -1,27 +1,2 @@
-{"timestamp":"00:00:04.546","source":"Server","level":"LOG","message":""}
-{"timestamp":"00:00:12.505","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"00:17:08.100","source":"Server","level":"LOG","message":"✓ Compiled in 190ms"}
-{"timestamp":"00:17:20.009","source":"Server","level":"LOG","message":"✓ Compiled in 65ms"}
-{"timestamp":"00:17:47.304","source":"Server","level":"LOG","message":"✓ Compiled in 78ms"}
-{"timestamp":"00:18:45.511","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"00:21:13.081","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"00:24:18.965","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"00:28:45.944","source":"Server","level":"LOG","message":"✓ Compiled in 66ms"}
-{"timestamp":"00:29:32.650","source":"Server","level":"LOG","message":"✓ Compiled in 83ms"}
-{"timestamp":"00:30:09.235","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:23:07.504","source":"Server","level":"LOG","message":"✓ Compiled in 61ms"}
-{"timestamp":"01:25:38.440","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:26:59.489","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:28:53.609","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:32:52.740","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:34:21.603","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"01:35:44.971","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"02:12:59.033","source":"Server","level":"LOG","message":"✓ Compiled in 125ms"}
-{"timestamp":"02:13:14.549","source":"Server","level":"LOG","message":"✓ Compiled in 55ms"}
-{"timestamp":"02:13:35.647","source":"Server","level":"LOG","message":"✓ Compiled in 61ms"}
-{"timestamp":"02:15:26.504","source":"Server","level":"LOG","message":"✓ Compiled in 43ms"}
-{"timestamp":"02:16:01.843","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"02:16:32.503","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}
-{"timestamp":"02:19:15.711","source":"Server","level":"LOG","message":"✓ Compiled in 48ms"}
-{"timestamp":"02:21:47.823","source":"Browser","level":"ERROR","message":"Uncaught ReferenceError: ECLSS_SCRUB_RATE is not defined\n    at PostFireClearanceDashboard (components/post-fire/PostFireClearanceDashboard.tsx:660:32)\n    at PostFireClearancePage (app\\post-fire-clearance\\page.tsx:17:10)\n  \u001b[90m658 |\u001b[0m             <span>\u001b[33mHCl\u001b[0m: +{\u001b[33mGAS_RATES\u001b[0m.hcl} ppm/s</span>\n  \u001b[90m659 |\u001b[0m             <span>\u001b[33mTemp\u001b[0m: +{\u001b[33mTEMP_RATE\u001b[0m} °C/s</span>\n\u001b[31m\u001b[1m>\u001b[0m \u001b[90m660 |\u001b[0m             <span>\u001b[33mECLSS\u001b[0m rate: {\u001b[33mECLSS_SCRUB_RATE\u001b[0m} \u001b[33mT\u001b[0m<sub>grp<\u001b[35m/sub>/s\u001b[0m</span>\n  \u001b[90m    |\u001b[0m                                \u001b[31m\u001b[1m^\u001b[0m\n  \u001b[90m661 |\u001b[0m             <span>\u001b[33mScrub\u001b[0m time = ⌈(\u001b[33mT\u001b[0m<sub>grp<\u001b[35m/sub> − 1.0) ÷ {ECLSS_SCRUB_RATE}⌉ s</span\u001b[0m>\n  \u001b[90m662 |\u001b[0m           </div>\n  \u001b[90m663 |\u001b[0m         </footer>"}
-{"timestamp":"02:21:47.827","source":"Server","level":"ERROR","message":"[browser] \"\\u001b[31mUncaught ReferenceError: ECLSS_SCRUB_RATE is not defined\\u001b[39m\\n\\u001b[31m    at PostFireClearanceDashboard (components/post-fire/PostFireClearanceDashboard.tsx:660:32)\\n    at PostFireClearancePage (app\\\\post-fire-clearance\\\\page.tsx:17:10)\\u001b[39m\\n  \\u001b[90m658 |\\u001b[0m             <span>\\u001b[33mHCl\\u001b[0m: +{\\u001b[33mGAS_RATES\\u001b[0m.hcl} ppm/s</span>\\n  \\u001b[90m659 |\\u001b[0m             <span>\\u001b[33mTemp\\u001b[0m: +{\\u001b[33mTEMP_RATE\\u001b[0m} °C/s</span>\\n\\u001b[31m\\u001b[1m>\\u001b[0m \\u001b[90m660 |\\u001b[0m             <span>\\u001b[33mECLSS\\u001b[0m rate: {\\u001b[33mECLSS_SCRUB_RATE\\u001b[0m} \\u001b[33mT\\u001b[0m<sub>grp<\\u001b[35m/sub>/s\\u001b[0m</span>\\n  \\u001b[90m    |\\u001b[0m                                \\u001b[31m\\u001b[1m^\\u001b[0m\\n  \\u001b[90m661 |\\u001b[0m             <span>\\u001b[33mScrub\\u001b[0m time = ⌈(\\u001b[33mT\\u001b[0m<sub>grp<\\u001b[35m/sub> − 1.0) ÷ {ECLSS_SCRUB_RATE}⌉ s</span\\u001b[0m>\\n  \\u001b[90m662 |\\u001b[0m           </div>\\n  \\u001b[90m663 |\\u001b[0m         </footer>\""}
+{"timestamp":"00:00:02.842","source":"Server","level":"LOG","message":""}
+{"timestamp":"00:01:27.792","source":"Browser","level":"INFO","message":"Download the React DevTools for a better development experience: https://react.dev/link/react-devtools"}

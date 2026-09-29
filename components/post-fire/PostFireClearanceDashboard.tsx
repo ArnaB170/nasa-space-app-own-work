@@ -6,14 +6,13 @@
  * Physics-based 3-phase fire simulation:
  *   IDLE       → compartment nominal, safe gas levels
  *   BURNING    → gases auto-generate at rated ppm/s; T_grp climbs live
- *   ASSESSMENT → fire stopped; ECLSS scrub time calculated from peak T_grp
- *   SCRUBBING  → gases decrement proportionally; timer counts to 0
+ *   ASSESSMENT → fire stopped; peak readings locked; reset available
  *
- * Physics constants (NASA-STD-3001 / ISS ECLSS reference):
- *   CO  rate : +2.5 ppm/s      ECLSS scrub rate : 0.05 T_grp/s
- *   HCN rate : +0.2 ppm/s      Scrub time = ceil((peak_Tgrp - 1.0) / 0.05)
- *   HCl rate : +0.3 ppm/s      Gases decrement proportionally to hit SMAC
- *   Temp rate: +0.5 °C/s       exactly when scrubTimer reaches 0
+ * Physics constants (NASA-STD-3001):
+ *   CO  rate : +2.5 ppm/s
+ *   HCN rate : +0.2 ppm/s
+ *   HCl rate : +0.3 ppm/s
+ *   Temp rate: +0.5 °C/s
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,8 +20,7 @@ import ThermalSmokeScanner3D, { SimulationState } from "./ThermalSmokeScanner3D"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-// SimulationState ("IDLE"|"BURNING"|"ASSESSMENT"|"SCRUBBING") is imported from
-// ThermalSmokeScanner3D. The dashboard's own phase uses the first three.
+// Dashboard uses 3 of the 4 SimulationState values (no SCRUBBING).
 type DashboardPhase = "IDLE" | "BURNING" | "ASSESSMENT";
 type ClearanceStatus = "UNSAFE" | "SAFE";
 
@@ -46,14 +44,6 @@ interface SmacData {
     temperature_c: EnvironmentReading;
     oxygen_percentage: EnvironmentReading;
   };
-}
-
-/** Snapshot captured the instant STOP FIRE is pressed. */
-interface PeakSnapshot {
-  gasPeaks: Array<{ id: string; peakPpm: number; smacLimit: number }>;
-  tempPeak: number;
-  tempSafeMax: number;
-  totalScrubTime: number; // seconds, pre-calculated
 }
 
 // ─── Physics constants ────────────────────────────────────────────────────────
@@ -88,9 +78,9 @@ function gasRatio(gas: Gas) {
   return clamp(gas.current_ppm / gas.smac_1hr_ppm, 0, 3) / 3;
 }
 
-function gasIsUnsafe(gas: Gas)              { return gas.current_ppm > gas.smac_1hr_ppm; }
-function tempIsUnsafe(e: EnvironmentReading){ return e.safe_max !== undefined && e.current > e.safe_max; }
-function o2IsUnsafe(e: EnvironmentReading)  { return e.safe_min !== undefined && e.current < e.safe_min; }
+function gasIsUnsafe(gas: Gas)               { return gas.current_ppm > gas.smac_1hr_ppm; }
+function tempIsUnsafe(e: EnvironmentReading) { return e.safe_max !== undefined && e.current > e.safe_max; }
+function o2IsUnsafe(e: EnvironmentReading)   { return e.safe_min !== undefined && e.current < e.safe_min; }
 
 function calcTGrp(gases: Gas[]) {
   return gases.reduce((acc, g) => acc + g.current_ppm / g.smac_1hr_ppm, 0);
@@ -110,34 +100,21 @@ function fmtTime(secs: number) {
 /** Round to 2 decimal places, avoiding floating-point drift in display. */
 function r2(n: number) { return Math.round(n * 100) / 100; }
 
-/**
- * Given the peak T_grp at the moment the fire is stopped, returns the number
- * of seconds the ECLSS must run to bring T_grp back to the safe threshold 1.0.
- * Formula: t = ceil( (peakTGrp - 1.0) / ECLSS_SCRUB_RATE )
- */
-function calcScrubTime(peakTGrp: number): number {
-  return Math.ceil(Math.max(0, (peakTGrp - 1.0) / ECLSS_SCRUB_RATE));
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 /** Phase-aware simulation controls bar. */
 function SimulationControls({
   phase,
   fireDuration,
-  calculatedScrubTime,
-  scrubbing,
   onStartFire,
   onStopFire,
-  onStartScrub,
+  onReset,
 }: {
   phase: DashboardPhase;
   fireDuration: number;
-  calculatedScrubTime: number;
-  scrubbing: boolean;
   onStartFire: () => void;
   onStopFire: () => void;
-  onStartScrub: () => void;
+  onReset: () => void;
 }) {
   if (phase === "IDLE") {
     return (
@@ -176,44 +153,23 @@ function SimulationControls({
     );
   }
 
-  // ASSESSMENT / SCRUBBING
+  // ASSESSMENT — locked peak readings, reset available
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-slate-700 bg-slate-900/60 px-6 py-5">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Fire Contained</p>
-          <p className="mt-0.5 text-slate-200">
-            Fire suppressed after{" "}
-            <span className="font-black text-amber-400">{fireDuration}s</span>
-          </p>
-        </div>
-        <button
-          onClick={onStartScrub}
-          disabled={scrubbing}
-          className="shrink-0 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95"
-        >
-          {scrubbing ? "⏳ Scrubbing…" : "💨 Initiate ECLSS Scrubbing"}
-        </button>
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-700 bg-slate-900/60 px-6 py-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">Fire Contained</p>
+        <p className="mt-0.5 text-slate-200">
+          Fire suppressed after{" "}
+          <span className="font-black text-amber-400">{fireDuration}s</span>
+          {" "}· Peak readings locked below.
+        </p>
       </div>
-      {/* Calculated scrub time display */}
-      <div className="grid grid-cols-3 gap-3 rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3">
-        <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Burn Duration</p>
-          <p className="mt-0.5 text-lg font-black tabular-nums text-slate-300">{fmtTime(fireDuration)}</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600">ECLSS Scrub Rate</p>
-          <p className="mt-0.5 text-lg font-black tabular-nums text-slate-300">0.05 T<sub>grp</sub>/s</p>
-        </div>
-        <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Calculated Scrub Time</p>
-          <p className="mt-0.5 text-lg font-black tabular-nums text-amber-400">{fmtTime(calculatedScrubTime)}</p>
-        </div>
-      </div>
-      <p className="text-xs text-slate-600">
-        Formula: t = ⌈(T<sub>grp_peak</sub> − 1.0) ÷ 0.05⌉ s · Gas levels will decrease
-        proportionally to reach SMAC limits exactly at t = 0.
-      </p>
+      <button
+        onClick={onReset}
+        className="shrink-0 rounded-lg border border-slate-600 bg-slate-800 px-5 py-2.5 text-sm font-bold text-slate-300 transition hover:bg-slate-700 hover:text-white active:scale-95"
+      >
+        🔄 RESET SIMULATION
+      </button>
     </div>
   );
 }
@@ -261,9 +217,7 @@ function GasGauge({ gas, phase }: { gas: Gas; phase: DashboardPhase }) {
   const unsafe = gasIsUnsafe(gas);
   const ratio  = gasRatio(gas);
   const pct    = Math.round((gas.current_ppm / gas.smac_1hr_ppm) * 100);
-
-  // Show per-second rate tag during BURNING
-  const rate = GAS_RATES[gas.id];
+  const rate   = GAS_RATES[gas.id];
 
   return (
     <div className={`rounded-xl border p-5 ${unsafe ? "border-red-800/60 bg-red-950/30" : "border-emerald-800/60 bg-emerald-950/20"}`}>
@@ -274,6 +228,9 @@ function GasGauge({ gas, phase }: { gas: Gas; phase: DashboardPhase }) {
             {gas.hazard}
             {phase === "BURNING" && rate !== undefined && (
               <span className="ml-2 font-semibold text-orange-500">+{rate} ppm/s</span>
+            )}
+            {phase === "ASSESSMENT" && (
+              <span className="ml-2 font-semibold text-slate-600">Peak</span>
             )}
           </p>
         </div>
@@ -349,56 +306,36 @@ function EnvironmentCard({
 
 export default function PostFireClearanceDashboard() {
 
-  // ── Simulation phase ───────────────────────────────────────────────
+  // ── Simulation phase ──────────────────────────────────────────────
   const [phase, setPhase]               = useState<DashboardPhase>("IDLE");
   const [fireDuration, setFireDuration] = useState<number>(0);
 
-  // ── Live telemetry ─────────────────────────────────────────────────
+  // ── Live telemetry (auto-increments during BURNING, locked in ASSESSMENT) ─
   const [data, setData] = useState<SmacData>(SAFE_SEED);
 
-  // ── Derived values (recalculated on every render from data) ────────
+  // ── Derived values ────────────────────────────────────────────────
   const tGrp   = calcTGrp(data.gases);
   const status  = calcStatus(tGrp, data);
 
-  // ── ECLSS scrubbing ────────────────────────────────────────────────
-  const [scrubbing, setScrubbing]             = useState<boolean>(false);
-  const [scrubTimer, setScrubTimer]           = useState<number>(0);
-  const [calculatedScrubTime, setCalcScrub]   = useState<number>(0);
-
-  // ── Refs: intervals + snapshot storage ────────────────────────────
-  const fireIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scrubIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** Mirrors scrubTimer for use inside interval callbacks (no stale closure). */
-  const scrubTimerRef    = useRef<number>(0);
-  /** Captures peak gas levels the instant STOP FIRE is pressed. */
-  const peakRef          = useRef<PeakSnapshot | null>(null);
+  // ── Refs ──────────────────────────────────────────────────────────
+  const fireIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /**
-   * Always mirrors the latest committed `data` state.
-   * Updated synchronously inside the fire-interval's setData callback so that
-   * handleStopFire can read the exact peak values without using setData as a
-   * "read" mechanism (which breaks under React Strict Mode's double-invoke).
+   * Always mirrors the latest committed `data` state inside the fire interval.
+   * Lets handleStopFire read peak values without using setData as a read
+   * mechanism (which is unsafe under React Strict Mode's double-invoke).
    */
-  const latestDataRef    = useRef<SmacData>(SAFE_SEED);
+  const latestDataRef   = useRef<SmacData>(SAFE_SEED);
 
-  // ── Phase: IDLE → BURNING ──────────────────────────────────────────
+  // ── Phase: IDLE → BURNING ─────────────────────────────────────────
   const handleStartFire = useCallback(() => {
-    // Reset to safe levels before starting the drill
     latestDataRef.current = SAFE_SEED;
     setData(SAFE_SEED);
     setFireDuration(0);
-    setScrubbing(false);
-    setScrubTimer(0);
-    scrubTimerRef.current = 0;
-    peakRef.current = null;
     setPhase("BURNING");
 
     fireIntervalRef.current = setInterval(() => {
-      // Increment fire clock
       setFireDuration((d) => d + 1);
 
-      // Auto-generate toxic gas at physics rates.
-      // We also keep latestDataRef in sync so handleStopFire can read peak
-      // values directly without relying on setData as a read mechanism.
       setData((prev) => {
         const next: SmacData = {
           ...prev,
@@ -414,119 +351,36 @@ export default function PostFireClearanceDashboard() {
             },
           },
         };
-        latestDataRef.current = next; // always track the most recent state
+        latestDataRef.current = next;
         return next;
       });
     }, 1000);
   }, []);
 
-  // ── Phase: BURNING → ASSESSMENT ───────────────────────────────────
+  // ── Phase: BURNING → ASSESSMENT (data freezes at peak) ───────────
   const handleStopFire = useCallback(() => {
     if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
-
-    // latestDataRef.current is always current — updated inside the fire
-    // interval's setData callback, never stale, never double-invoked.
-    const peak = latestDataRef.current;
-    const peakTGrp = calcTGrp(peak.gases);
-    const scrubSecs = calcScrubTime(peakTGrp);
-
-    peakRef.current = {
-      gasPeaks: peak.gases.map((g) => ({
-        id: g.id,
-        peakPpm:   g.current_ppm,
-        smacLimit: g.smac_1hr_ppm,
-      })),
-      tempPeak:       peak.environment.temperature_c.current,
-      tempSafeMax:    peak.environment.temperature_c.safe_max ?? 27,
-      totalScrubTime: scrubSecs,
-    };
-
-    scrubTimerRef.current = scrubSecs;
-    setScrubTimer(scrubSecs);
-    setCalcScrub(scrubSecs);
+    // Data stays exactly as-is — the gauges are now showing peak readings.
     setPhase("ASSESSMENT");
   }, []);
 
-  // ── Phase: ASSESSMENT → SCRUBBING ─────────────────────────────────
-  const handleStartScrub = useCallback(() => {
-    if (scrubbing || !peakRef.current) return;
-    const snap = peakRef.current;
-    setScrubbing(true);
+  // ── Phase: ASSESSMENT → IDLE (full reset) ────────────────────────
+  const handleReset = useCallback(() => {
+    if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
+    latestDataRef.current = SAFE_SEED;
+    setData(SAFE_SEED);
+    setFireDuration(0);
+    setPhase("IDLE");
+  }, []);
 
-    scrubIntervalRef.current = setInterval(() => {
-      // Decrement the ref-based timer (avoids stale closure)
-      scrubTimerRef.current -= 1;
-      const remaining = scrubTimerRef.current;
-      setScrubTimer(remaining);
-
-      if (remaining <= 0) {
-        // Scrubbing complete — snap everything exactly to safe limits
-        clearInterval(scrubIntervalRef.current!);
-        setScrubbing(false);
-        setData((prev) => ({
-          ...prev,
-          gases: prev.gases.map((g) => {
-            const pk = snap.gasPeaks.find((p) => p.id === g.id);
-            return pk ? { ...g, current_ppm: pk.smacLimit } : g;
-          }),
-          environment: {
-            ...prev.environment,
-            temperature_c: {
-              ...prev.environment.temperature_c,
-              current: snap.tempSafeMax,
-            },
-          },
-        }));
-        return;
-      }
-
-      // Proportional decrement each tick:
-      // Δppm = max(0, peak − smacLimit) / totalScrubTime
-      // The Math.max(0, ...) guard prevents negative decrements: if a gas's
-      // peak is still below its SMAC limit (short fire, T_grp driven by
-      // additive toxicity rather than individual limits), the scrubber must
-      // never increase that gas — it simply leaves it unchanged.
-      setData((prev) => ({
-        ...prev,
-        gases: prev.gases.map((g) => {
-          const pk = snap.gasPeaks.find((p) => p.id === g.id);
-          if (!pk) return g;
-          const decrementPerSec =
-            Math.max(0, pk.peakPpm - pk.smacLimit) / snap.totalScrubTime;
-          return {
-            ...g,
-            current_ppm: r2(Math.max(pk.smacLimit, g.current_ppm - decrementPerSec)),
-          };
-        }),
-        environment: {
-          ...prev.environment,
-          temperature_c: {
-            ...prev.environment.temperature_c,
-            current: r2(
-              Math.max(
-                snap.tempSafeMax,
-                prev.environment.temperature_c.current -
-                  Math.max(0, snap.tempPeak - snap.tempSafeMax) / snap.totalScrubTime,
-              ),
-            ),
-          },
-        },
-      }));
-    }, 1000);
-  }, [scrubbing]);
-
-  // ── Cleanup on unmount ─────────────────────────────────────────────
+  // ── Cleanup on unmount ────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (fireIntervalRef.current)  clearInterval(fireIntervalRef.current);
-      if (scrubIntervalRef.current) clearInterval(scrubIntervalRef.current);
+      if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
     };
   }, []);
 
-  // ── Derived scanner state (maps 3-phase + scrubbing bool → 4-state) ─
-  const scannerState: SimulationState = scrubbing ? "SCRUBBING" : phase;
-
-  // ── Render ─────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-10 font-sans text-slate-100">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -548,29 +402,10 @@ export default function PostFireClearanceDashboard() {
         <SimulationControls
           phase={phase}
           fireDuration={fireDuration}
-          calculatedScrubTime={calculatedScrubTime}
-          scrubbing={scrubbing}
           onStartFire={handleStartFire}
           onStopFire={handleStopFire}
-          onStartScrub={handleStartScrub}
+          onReset={handleReset}
         />
-
-        {/* ── ECLSS scrubbing countdown ── */}
-        {scrubbing && scrubTimer > 0 && (
-          <div className="flex items-center justify-between rounded-xl border border-amber-500/50 bg-amber-950/40 px-6 py-4">
-            <div>
-              <p className="font-bold uppercase tracking-widest text-amber-500">
-                ECLSS Atmospheric Scrubbing in Progress
-              </p>
-              <p className="mt-0.5 text-xs text-amber-700">
-                Gases decrementing proportionally → SMAC limits at t = 0
-              </p>
-            </div>
-            <span className="text-2xl font-black tabular-nums text-amber-400">
-              {fmtTime(scrubTimer)}
-            </span>
-          </div>
-        )}
 
         {/* ── Clearance Status Banner ── */}
         <StatusBanner status={status} tGrp={tGrp} phase={phase} />
@@ -583,28 +418,19 @@ export default function PostFireClearanceDashboard() {
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {phase === "BURNING"
-                  ? "FIRE DETECTED"
-                  : scrubbing
-                    ? "ECLSS ACTIVE"
-                    : phase === "ASSESSMENT"
-                      ? "Post-Fire Scan"
-                      : "Feed Active"}
+                {phase === "BURNING" ? "FIRE DETECTED" : phase === "ASSESSMENT" ? "Post-Fire Scan" : "Feed Active"}
               </span>
               <span className={`flex h-2 w-2 rounded-full ${
                 phase === "BURNING"
                   ? "animate-ping bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.9)]"
-                  : scrubbing
-                    ? "animate-pulse bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]"
-                    : "animate-pulse bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+                  : "animate-pulse bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"
               }`} />
             </div>
           </div>
           <div className="h-[400px] w-full bg-[#04060c]">
             <ThermalSmokeScanner3D
-              simulationState={scannerState}
+              simulationState={phase as SimulationState}
               tGrp={tGrp}
-              scrubTimer={scrubTimer}
             />
           </div>
         </section>
@@ -613,6 +439,11 @@ export default function PostFireClearanceDashboard() {
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
             Atmospheric Contaminants
+            {phase === "ASSESSMENT" && (
+              <span className="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                🔒 PEAK LOCKED
+              </span>
+            )}
           </h2>
           <div className="grid gap-4">
             {data.gases.map((gas) => (
@@ -625,6 +456,11 @@ export default function PostFireClearanceDashboard() {
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500">
             Environmental Conditions
+            {phase === "ASSESSMENT" && (
+              <span className="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                🔒 PEAK LOCKED
+              </span>
+            )}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <EnvironmentCard
@@ -657,8 +493,7 @@ export default function PostFireClearanceDashboard() {
             <span>HCN: +{GAS_RATES.hcn} ppm/s</span>
             <span>HCl: +{GAS_RATES.hcl} ppm/s</span>
             <span>Temp: +{TEMP_RATE} °C/s</span>
-            <span>ECLSS rate: {ECLSS_SCRUB_RATE} T<sub>grp</sub>/s</span>
-            <span>Scrub time = ⌈(T<sub>grp</sub> − 1.0) ÷ {ECLSS_SCRUB_RATE}⌉ s</span>
+            <span>T-Group limit: 1.00 (additive toxicity index)</span>
           </div>
         </footer>
 

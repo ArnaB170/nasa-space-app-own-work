@@ -19,14 +19,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
  * Physics-based 3-phase fire simulation:
  *   IDLE       → compartment nominal, safe gas levels
  *   BURNING    → gases auto-generate at rated ppm/s; T_grp climbs live
- *   ASSESSMENT → fire stopped; ECLSS scrub time calculated from peak T_grp
- *   SCRUBBING  → gases decrement proportionally; timer counts to 0
+ *   ASSESSMENT → fire stopped; peak readings locked; reset available
  *
- * Physics constants (NASA-STD-3001 / ISS ECLSS reference):
- *   CO  rate : +2.5 ppm/s      ECLSS scrub rate : 0.05 T_grp/s
- *   HCN rate : +0.2 ppm/s      Scrub time = ceil((peak_Tgrp - 1.0) / 0.05)
- *   HCl rate : +0.3 ppm/s      Gases decrement proportionally to hit SMAC
- *   Temp rate: +0.5 °C/s       exactly when scrubTimer reaches 0
+ * Physics constants (NASA-STD-3001):
+ *   CO  rate : +2.5 ppm/s
+ *   HCN rate : +0.2 ppm/s
+ *   HCl rate : +0.3 ppm/s
+ *   Temp rate: +0.5 °C/s
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$post$2d$fire$2f$ThermalSmokeScanner3D$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/post-fire/ThermalSmokeScanner3D.tsx [app-ssr] (ecmascript)");
 "use client";
@@ -106,15 +105,8 @@ function fmtTime(secs) {
 /** Round to 2 decimal places, avoiding floating-point drift in display. */ function r2(n) {
     return Math.round(n * 100) / 100;
 }
-/**
- * Given the peak T_grp at the moment the fire is stopped, returns the number
- * of seconds the ECLSS must run to bring T_grp back to the safe threshold 1.0.
- * Formula: t = ceil( (peakTGrp - 1.0) / ECLSS_SCRUB_RATE )
- */ function calcScrubTime(peakTGrp) {
-    return Math.ceil(Math.max(0, (peakTGrp - 1.0) / ECLSS_SCRUB_RATE));
-}
 // ─── Sub-components ───────────────────────────────────────────────────────────
-/** Phase-aware simulation controls bar. */ function SimulationControls({ phase, fireDuration, calculatedScrubTime, scrubbing, onStartFire, onStopFire, onStartScrub }) {
+/** Phase-aware simulation controls bar. */ function SimulationControls({ phase, fireDuration, onStartFire, onStopFire, onReset }) {
     if (phase === "IDLE") {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "flex items-center justify-between rounded-xl border border-red-900/50 bg-red-950/30 px-6 py-5",
@@ -126,7 +118,7 @@ function fmtTime(secs) {
                             children: "Simulation Status"
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 146,
+                            lineNumber: 123,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -134,13 +126,13 @@ function fmtTime(secs) {
                             children: "Compartment nominal. All gases within SMAC limits."
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 147,
+                            lineNumber: 124,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 145,
+                    lineNumber: 122,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -149,13 +141,13 @@ function fmtTime(secs) {
                     children: "🔥 INITIATE LIVE FIRE"
                 }, void 0, false, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 149,
+                    lineNumber: 126,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-            lineNumber: 144,
+            lineNumber: 121,
             columnNumber: 7
         }, this);
     }
@@ -170,7 +162,7 @@ function fmtTime(secs) {
                             className: "flex h-3 w-3 animate-ping rounded-full bg-orange-500"
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 163,
+                            lineNumber: 140,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -180,7 +172,7 @@ function fmtTime(secs) {
                                     children: "🔥 Fire Active — Auto-generating toxins"
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 165,
+                                    lineNumber: 142,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -188,19 +180,19 @@ function fmtTime(secs) {
                                     children: fmtTime(fireDuration)
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 166,
+                                    lineNumber: 143,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 164,
+                            lineNumber: 141,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 162,
+                    lineNumber: 139,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -209,193 +201,73 @@ function fmtTime(secs) {
                     children: "🛑 STOP FIRE"
                 }, void 0, false, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 169,
+                    lineNumber: 146,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-            lineNumber: 161,
+            lineNumber: 138,
             columnNumber: 7
         }, this);
     }
-    // ASSESSMENT / SCRUBBING
+    // ASSESSMENT — locked peak readings, reset available
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-        className: "flex flex-col gap-4 rounded-xl border border-slate-700 bg-slate-900/60 px-6 py-5",
+        className: "flex items-center justify-between gap-4 rounded-xl border border-slate-700 bg-slate-900/60 px-6 py-5",
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "flex items-center justify-between gap-4",
                 children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "text-xs font-semibold uppercase tracking-widest text-slate-500",
+                        children: "Fire Contained"
+                    }, void 0, false, {
+                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
+                        lineNumber: 160,
+                        columnNumber: 9
+                    }, this),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                        className: "mt-0.5 text-slate-200",
                         children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-xs font-semibold uppercase tracking-widest text-slate-500",
-                                children: "Fire Contained"
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 184,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "mt-0.5 text-slate-200",
+                            "Fire suppressed after",
+                            " ",
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                className: "font-black text-amber-400",
                                 children: [
-                                    "Fire suppressed after",
-                                    " ",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                        className: "font-black text-amber-400",
-                                        children: [
-                                            fireDuration,
-                                            "s"
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                        lineNumber: 187,
-                                        columnNumber: 13
-                                    }, this)
+                                    fireDuration,
+                                    "s"
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 185,
+                                lineNumber: 163,
                                 columnNumber: 11
-                            }, this)
+                            }, this),
+                            " ",
+                            "· Peak readings locked below."
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 183,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                        onClick: onStartScrub,
-                        disabled: scrubbing,
-                        className: "shrink-0 rounded-lg bg-sky-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95",
-                        children: scrubbing ? "⏳ Scrubbing…" : "💨 Initiate ECLSS Scrubbing"
-                    }, void 0, false, {
-                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 190,
+                        lineNumber: 161,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 182,
+                lineNumber: 159,
                 columnNumber: 7
             }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                className: "grid grid-cols-3 gap-3 rounded-lg border border-slate-800 bg-slate-950/60 px-4 py-3",
-                children: [
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "text-center",
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-[10px] font-bold uppercase tracking-wider text-slate-600",
-                                children: "Burn Duration"
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 201,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "mt-0.5 text-lg font-black tabular-nums text-slate-300",
-                                children: fmtTime(fireDuration)
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 202,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 200,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "text-center",
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-[10px] font-bold uppercase tracking-wider text-slate-600",
-                                children: "ECLSS Scrub Rate"
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 205,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "mt-0.5 text-lg font-black tabular-nums text-slate-300",
-                                children: [
-                                    "0.05 T",
-                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("sub", {
-                                        children: "grp"
-                                    }, void 0, false, {
-                                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                        lineNumber: 206,
-                                        columnNumber: 86
-                                    }, this),
-                                    "/s"
-                                ]
-                            }, void 0, true, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 206,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 204,
-                        columnNumber: 9
-                    }, this),
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "text-center",
-                        children: [
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "text-[10px] font-bold uppercase tracking-wider text-amber-700",
-                                children: "Calculated Scrub Time"
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 209,
-                                columnNumber: 11
-                            }, this),
-                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                className: "mt-0.5 text-lg font-black tabular-nums text-amber-400",
-                                children: fmtTime(calculatedScrubTime)
-                            }, void 0, false, {
-                                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 210,
-                                columnNumber: 11
-                            }, this)
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 208,
-                        columnNumber: 9
-                    }, this)
-                ]
-            }, void 0, true, {
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                onClick: onReset,
+                className: "shrink-0 rounded-lg border border-slate-600 bg-slate-800 px-5 py-2.5 text-sm font-bold text-slate-300 transition hover:bg-slate-700 hover:text-white active:scale-95",
+                children: "🔄 RESET SIMULATION"
+            }, void 0, false, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 199,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                className: "text-xs text-slate-600",
-                children: [
-                    "Formula: t = ⌈(T",
-                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("sub", {
-                        children: "grp_peak"
-                    }, void 0, false, {
-                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 214,
-                        columnNumber: 25
-                    }, this),
-                    " − 1.0) ÷ 0.05⌉ s · Gas levels will decrease proportionally to reach SMAC limits exactly at t = 0."
-                ]
-            }, void 0, true, {
-                fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 213,
+                lineNumber: 167,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-        lineNumber: 181,
+        lineNumber: 158,
         columnNumber: 5
     }, this);
 }
@@ -410,7 +282,7 @@ function fmtTime(secs) {
                 children: isUnsafe ? "🚨" : "✅"
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 235,
+                lineNumber: 191,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -424,7 +296,7 @@ function fmtTime(secs) {
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 239,
+                        lineNumber: 195,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -432,13 +304,13 @@ function fmtTime(secs) {
                         children: isUnsafe ? "Readings exceed NASA 1-Hour SMAC limits. Re-entry prohibited." : "All readings within SMAC limits. Compartment cleared for re-entry."
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 242,
+                        lineNumber: 198,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 238,
+                lineNumber: 194,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -449,7 +321,7 @@ function fmtTime(secs) {
                         children: "T-Group Index"
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 249,
+                        lineNumber: 205,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -457,7 +329,7 @@ function fmtTime(secs) {
                         children: tGrp.toFixed(2)
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 250,
+                        lineNumber: 206,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -465,19 +337,19 @@ function fmtTime(secs) {
                         children: "limit: 1.00"
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 253,
+                        lineNumber: 209,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 248,
+                lineNumber: 204,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-        lineNumber: 230,
+        lineNumber: 186,
         columnNumber: 5
     }, this);
 }
@@ -485,7 +357,6 @@ function fmtTime(secs) {
     const unsafe = gasIsUnsafe(gas);
     const ratio = gasRatio(gas);
     const pct = Math.round(gas.current_ppm / gas.smac_1hr_ppm * 100);
-    // Show per-second rate tag during BURNING
     const rate = GAS_RATES[gas.id];
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: `rounded-xl border p-5 ${unsafe ? "border-red-800/60 bg-red-950/30" : "border-emerald-800/60 bg-emerald-950/20"}`,
@@ -500,7 +371,7 @@ function fmtTime(secs) {
                                 children: gas.name
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 272,
+                                lineNumber: 226,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -516,19 +387,27 @@ function fmtTime(secs) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                        lineNumber: 276,
+                                        lineNumber: 230,
+                                        columnNumber: 15
+                                    }, this),
+                                    phase === "ASSESSMENT" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                        className: "ml-2 font-semibold text-slate-600",
+                                        children: "Peak"
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
+                                        lineNumber: 233,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 273,
+                                lineNumber: 227,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 271,
+                        lineNumber: 225,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -536,13 +415,13 @@ function fmtTime(secs) {
                         children: unsafe ? "EXCEEDS SMAC" : "WITHIN SMAC"
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 280,
+                        lineNumber: 237,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 270,
+                lineNumber: 224,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -555,7 +434,7 @@ function fmtTime(secs) {
                                 children: "Current"
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 286,
+                                lineNumber: 243,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -567,19 +446,19 @@ function fmtTime(secs) {
                                         children: "ppm"
                                     }, void 0, false, {
                                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                        lineNumber: 289,
+                                        lineNumber: 246,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 287,
+                                lineNumber: 244,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 285,
+                        lineNumber: 242,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -590,7 +469,7 @@ function fmtTime(secs) {
                                 children: "SMAC 1-Hr Limit"
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 293,
+                                lineNumber: 250,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -602,25 +481,25 @@ function fmtTime(secs) {
                                         children: "ppm"
                                     }, void 0, false, {
                                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                        lineNumber: 296,
+                                        lineNumber: 253,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 294,
+                                lineNumber: 251,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 292,
+                        lineNumber: 249,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 284,
+                lineNumber: 241,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -635,7 +514,7 @@ function fmtTime(secs) {
                             }
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 302,
+                            lineNumber: 259,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -645,18 +524,18 @@ function fmtTime(secs) {
                             }
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 307,
+                            lineNumber: 264,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 301,
+                    lineNumber: 258,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 300,
+                lineNumber: 257,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -667,13 +546,13 @@ function fmtTime(secs) {
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 310,
+                lineNumber: 267,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-        lineNumber: 269,
+        lineNumber: 223,
         columnNumber: 5
     }, this);
 }
@@ -686,7 +565,7 @@ function fmtTime(secs) {
                 children: icon
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 325,
+                lineNumber: 282,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -701,13 +580,13 @@ function fmtTime(secs) {
                                 children: rateTag
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 329,
+                                lineNumber: 286,
                                 columnNumber: 23
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 327,
+                        lineNumber: 284,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -719,19 +598,19 @@ function fmtTime(secs) {
                                 children: unit
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 332,
+                                lineNumber: 289,
                                 columnNumber: 31
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 331,
+                        lineNumber: 288,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 326,
+                lineNumber: 283,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -742,7 +621,7 @@ function fmtTime(secs) {
                         children: limitLabel
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 336,
+                        lineNumber: 293,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -754,13 +633,13 @@ function fmtTime(secs) {
                                 children: unit
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 337,
+                                lineNumber: 294,
                                 columnNumber: 69
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 337,
+                        lineNumber: 294,
                         columnNumber: 9
                     }, this),
                     unsafe && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -768,63 +647,46 @@ function fmtTime(secs) {
                         children: direction === "above" ? "▲ Too High" : "▼ Too Low"
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                        lineNumber: 339,
+                        lineNumber: 296,
                         columnNumber: 11
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                lineNumber: 335,
+                lineNumber: 292,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-        lineNumber: 324,
+        lineNumber: 281,
         columnNumber: 5
     }, this);
 }
 function PostFireClearanceDashboard() {
-    // ── Simulation phase ───────────────────────────────────────────────
+    // ── Simulation phase ──────────────────────────────────────────────
     const [phase, setPhase] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("IDLE");
     const [fireDuration, setFireDuration] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
-    // ── Live telemetry ─────────────────────────────────────────────────
+    // ── Live telemetry (auto-increments during BURNING, locked in ASSESSMENT) ─
     const [data, setData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(SAFE_SEED);
-    // ── Derived values (recalculated on every render from data) ────────
+    // ── Derived values ────────────────────────────────────────────────
     const tGrp = calcTGrp(data.gases);
     const status = calcStatus(tGrp, data);
-    // ── ECLSS scrubbing ────────────────────────────────────────────────
-    const [scrubbing, setScrubbing] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
-    const [scrubTimer, setScrubTimer] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
-    const [calculatedScrubTime, setCalcScrub] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
-    // ── Refs: intervals + snapshot storage ────────────────────────────
+    // ── Refs ──────────────────────────────────────────────────────────
     const fireIntervalRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const scrubIntervalRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
-    /** Mirrors scrubTimer for use inside interval callbacks (no stale closure). */ const scrubTimerRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(0);
-    /** Captures peak gas levels the instant STOP FIRE is pressed. */ const peakRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     /**
-   * Always mirrors the latest committed `data` state.
-   * Updated synchronously inside the fire-interval's setData callback so that
-   * handleStopFire can read the exact peak values without using setData as a
-   * "read" mechanism (which breaks under React Strict Mode's double-invoke).
+   * Always mirrors the latest committed `data` state inside the fire interval.
+   * Lets handleStopFire read peak values without using setData as a read
+   * mechanism (which is unsafe under React Strict Mode's double-invoke).
    */ const latestDataRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(SAFE_SEED);
-    // ── Phase: IDLE → BURNING ──────────────────────────────────────────
+    // ── Phase: IDLE → BURNING ─────────────────────────────────────────
     const handleStartFire = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
-        // Reset to safe levels before starting the drill
         latestDataRef.current = SAFE_SEED;
         setData(SAFE_SEED);
         setFireDuration(0);
-        setScrubbing(false);
-        setScrubTimer(0);
-        scrubTimerRef.current = 0;
-        peakRef.current = null;
         setPhase("BURNING");
         fireIntervalRef.current = setInterval(()=>{
-            // Increment fire clock
             setFireDuration((d)=>d + 1);
-            // Auto-generate toxic gas at physics rates.
-            // We also keep latestDataRef in sync so handleStopFire can read peak
-            // values directly without relying on setData as a read mechanism.
             setData((prev)=>{
                 const next = {
                     ...prev,
@@ -840,106 +702,32 @@ function PostFireClearanceDashboard() {
                         }
                     }
                 };
-                latestDataRef.current = next; // always track the most recent state
+                latestDataRef.current = next;
                 return next;
             });
         }, 1000);
     }, []);
-    // ── Phase: BURNING → ASSESSMENT ───────────────────────────────────
+    // ── Phase: BURNING → ASSESSMENT (data freezes at peak) ───────────
     const handleStopFire = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
         if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
-        // latestDataRef.current is always current — updated inside the fire
-        // interval's setData callback, never stale, never double-invoked.
-        const peak = latestDataRef.current;
-        const peakTGrp = calcTGrp(peak.gases);
-        const scrubSecs = calcScrubTime(peakTGrp);
-        peakRef.current = {
-            gasPeaks: peak.gases.map((g)=>({
-                    id: g.id,
-                    peakPpm: g.current_ppm,
-                    smacLimit: g.smac_1hr_ppm
-                })),
-            tempPeak: peak.environment.temperature_c.current,
-            tempSafeMax: peak.environment.temperature_c.safe_max ?? 27,
-            totalScrubTime: scrubSecs
-        };
-        scrubTimerRef.current = scrubSecs;
-        setScrubTimer(scrubSecs);
-        setCalcScrub(scrubSecs);
+        // Data stays exactly as-is — the gauges are now showing peak readings.
         setPhase("ASSESSMENT");
     }, []);
-    // ── Phase: ASSESSMENT → SCRUBBING ─────────────────────────────────
-    const handleStartScrub = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
-        if (scrubbing || !peakRef.current) return;
-        const snap = peakRef.current;
-        setScrubbing(true);
-        scrubIntervalRef.current = setInterval(()=>{
-            // Decrement the ref-based timer (avoids stale closure)
-            scrubTimerRef.current -= 1;
-            const remaining = scrubTimerRef.current;
-            setScrubTimer(remaining);
-            if (remaining <= 0) {
-                // Scrubbing complete — snap everything exactly to safe limits
-                clearInterval(scrubIntervalRef.current);
-                setScrubbing(false);
-                setData((prev)=>({
-                        ...prev,
-                        gases: prev.gases.map((g)=>{
-                            const pk = snap.gasPeaks.find((p)=>p.id === g.id);
-                            return pk ? {
-                                ...g,
-                                current_ppm: pk.smacLimit
-                            } : g;
-                        }),
-                        environment: {
-                            ...prev.environment,
-                            temperature_c: {
-                                ...prev.environment.temperature_c,
-                                current: snap.tempSafeMax
-                            }
-                        }
-                    }));
-                return;
-            }
-            // Proportional decrement each tick:
-            // Δppm = max(0, peak − smacLimit) / totalScrubTime
-            // The Math.max(0, ...) guard prevents negative decrements: if a gas's
-            // peak is still below its SMAC limit (short fire, T_grp driven by
-            // additive toxicity rather than individual limits), the scrubber must
-            // never increase that gas — it simply leaves it unchanged.
-            setData((prev)=>({
-                    ...prev,
-                    gases: prev.gases.map((g)=>{
-                        const pk = snap.gasPeaks.find((p)=>p.id === g.id);
-                        if (!pk) return g;
-                        const decrementPerSec = Math.max(0, pk.peakPpm - pk.smacLimit) / snap.totalScrubTime;
-                        return {
-                            ...g,
-                            current_ppm: r2(Math.max(pk.smacLimit, g.current_ppm - decrementPerSec))
-                        };
-                    }),
-                    environment: {
-                        ...prev.environment,
-                        temperature_c: {
-                            ...prev.environment.temperature_c,
-                            current: r2(Math.max(snap.tempSafeMax, prev.environment.temperature_c.current - Math.max(0, snap.tempPeak - snap.tempSafeMax) / snap.totalScrubTime))
-                        }
-                    }
-                }));
-        }, 1000);
-    }, [
-        scrubbing
-    ]);
-    // ── Cleanup on unmount ─────────────────────────────────────────────
+    // ── Phase: ASSESSMENT → IDLE (full reset) ────────────────────────
+    const handleReset = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(()=>{
+        if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
+        latestDataRef.current = SAFE_SEED;
+        setData(SAFE_SEED);
+        setFireDuration(0);
+        setPhase("IDLE");
+    }, []);
+    // ── Cleanup on unmount ────────────────────────────────────────────
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         return ()=>{
             if (fireIntervalRef.current) clearInterval(fireIntervalRef.current);
-            if (scrubIntervalRef.current) clearInterval(scrubIntervalRef.current);
         };
     }, []);
-    // ── Derived scanner state (maps 3-phase + scrubbing bool → 4-state) ─
-    const scannerState = scrubbing ? "SCRUBBING" : phase;
-    // ── Render ─────────────────────────────────────────────────────────
+    // ── Render ────────────────────────────────────────────────────────
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "min-h-screen bg-slate-950 px-4 py-10 font-sans text-slate-100",
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -953,7 +741,7 @@ function PostFireClearanceDashboard() {
                             children: "🔥"
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 536,
+                            lineNumber: 390,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -963,7 +751,7 @@ function PostFireClearanceDashboard() {
                                     children: "Post-Fire Clearance Assessment"
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 538,
+                                    lineNumber: 392,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -971,74 +759,31 @@ function PostFireClearanceDashboard() {
                                     children: "NASA 1-Hour SMAC Limits · ISS Environmental Baselines · Physics Simulation"
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 541,
+                                    lineNumber: 395,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 537,
+                            lineNumber: 391,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 535,
+                    lineNumber: 389,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SimulationControls, {
                     phase: phase,
                     fireDuration: fireDuration,
-                    calculatedScrubTime: calculatedScrubTime,
-                    scrubbing: scrubbing,
                     onStartFire: handleStartFire,
                     onStopFire: handleStopFire,
-                    onStartScrub: handleStartScrub
+                    onReset: handleReset
                 }, void 0, false, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 548,
+                    lineNumber: 402,
                     columnNumber: 9
-                }, this),
-                scrubbing && scrubTimer > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                    className: "flex items-center justify-between rounded-xl border border-amber-500/50 bg-amber-950/40 px-6 py-4",
-                    children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                    className: "font-bold uppercase tracking-widest text-amber-500",
-                                    children: "ECLSS Atmospheric Scrubbing in Progress"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 562,
-                                    columnNumber: 15
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                    className: "mt-0.5 text-xs text-amber-700",
-                                    children: "Gases decrementing proportionally → SMAC limits at t = 0"
-                                }, void 0, false, {
-                                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 565,
-                                    columnNumber: 15
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 561,
-                            columnNumber: 13
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                            className: "text-2xl font-black tabular-nums text-amber-400",
-                            children: fmtTime(scrubTimer)
-                        }, void 0, false, {
-                            fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 569,
-                            columnNumber: 13
-                        }, this)
-                    ]
-                }, void 0, true, {
-                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 560,
-                    columnNumber: 11
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(StatusBanner, {
                     status: status,
@@ -1046,7 +791,7 @@ function PostFireClearanceDashboard() {
                     phase: phase
                 }, void 0, false, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 576,
+                    lineNumber: 411,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
@@ -1060,7 +805,7 @@ function PostFireClearanceDashboard() {
                                     children: "Live Volumetric Cabin Scan"
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 581,
+                                    lineNumber: 416,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1068,61 +813,70 @@ function PostFireClearanceDashboard() {
                                     children: [
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                             className: "text-[10px] font-bold uppercase tracking-wider text-slate-500",
-                                            children: phase === "BURNING" ? "FIRE DETECTED" : scrubbing ? "ECLSS ACTIVE" : phase === "ASSESSMENT" ? "Post-Fire Scan" : "Feed Active"
+                                            children: phase === "BURNING" ? "FIRE DETECTED" : phase === "ASSESSMENT" ? "Post-Fire Scan" : "Feed Active"
                                         }, void 0, false, {
                                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                            lineNumber: 585,
+                                            lineNumber: 420,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                            className: `flex h-2 w-2 rounded-full ${phase === "BURNING" ? "animate-ping bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.9)]" : scrubbing ? "animate-pulse bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]" : "animate-pulse bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"}`
+                                            className: `flex h-2 w-2 rounded-full ${phase === "BURNING" ? "animate-ping bg-orange-500 shadow-[0_0_8px_rgba(251,146,60,0.9)]" : "animate-pulse bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"}`
                                         }, void 0, false, {
                                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                            lineNumber: 594,
+                                            lineNumber: 423,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 584,
+                                    lineNumber: 419,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 580,
+                            lineNumber: 415,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "h-[400px] w-full bg-[#04060c]",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$post$2d$fire$2f$ThermalSmokeScanner3D$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
-                                simulationState: scannerState,
-                                tGrp: tGrp,
-                                scrubTimer: scrubTimer
+                                simulationState: phase,
+                                tGrp: tGrp
                             }, void 0, false, {
                                 fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                lineNumber: 604,
+                                lineNumber: 431,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 603,
+                            lineNumber: 430,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 579,
+                    lineNumber: 414,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                             className: "mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500",
-                            children: "Atmospheric Contaminants"
-                        }, void 0, false, {
+                            children: [
+                                "Atmospheric Contaminants",
+                                phase === "ASSESSMENT" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500",
+                                    children: "🔒 PEAK LOCKED"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
+                                    lineNumber: 443,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 614,
+                            lineNumber: 440,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1132,28 +886,38 @@ function PostFireClearanceDashboard() {
                                     phase: phase
                                 }, gas.id, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 619,
+                                    lineNumber: 450,
                                     columnNumber: 15
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 617,
+                            lineNumber: 448,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 613,
+                    lineNumber: 439,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h2", {
                             className: "mb-3 text-xs font-semibold uppercase tracking-widest text-slate-500",
-                            children: "Environmental Conditions"
-                        }, void 0, false, {
+                            children: [
+                                "Environmental Conditions",
+                                phase === "ASSESSMENT" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                    className: "ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-500",
+                                    children: "🔒 PEAK LOCKED"
+                                }, void 0, false, {
+                                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
+                                    lineNumber: 460,
+                                    columnNumber: 15
+                                }, this)
+                            ]
+                        }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 626,
+                            lineNumber: 457,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1171,7 +935,7 @@ function PostFireClearanceDashboard() {
                                     rateTag: phase === "BURNING" ? `+${TEMP_RATE}°C/s` : undefined
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 630,
+                                    lineNumber: 466,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(EnvironmentCard, {
@@ -1185,19 +949,19 @@ function PostFireClearanceDashboard() {
                                     direction: "below"
                                 }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 640,
+                                    lineNumber: 476,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 629,
+                            lineNumber: 465,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 625,
+                    lineNumber: 456,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("footer", {
@@ -1208,7 +972,7 @@ function PostFireClearanceDashboard() {
                             children: "Physics Reference (NASA-STD-3001 Vol. 1)"
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 654,
+                            lineNumber: 490,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1222,7 +986,7 @@ function PostFireClearanceDashboard() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 656,
+                                    lineNumber: 492,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1233,7 +997,7 @@ function PostFireClearanceDashboard() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 657,
+                                    lineNumber: 493,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1244,7 +1008,7 @@ function PostFireClearanceDashboard() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 658,
+                                    lineNumber: 494,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1255,68 +1019,37 @@ function PostFireClearanceDashboard() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 659,
+                                    lineNumber: 495,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    children: [
-                                        "ECLSS rate: ",
-                                        ECLSS_SCRUB_RATE,
-                                        " T",
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("sub", {
-                                            children: "grp"
-                                        }, void 0, false, {
-                                            fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                            lineNumber: 660,
-                                            columnNumber: 51
-                                        }, this),
-                                        "/s"
-                                    ]
-                                }, void 0, true, {
+                                    children: "T-Group limit: 1.00 (additive toxicity index)"
+                                }, void 0, false, {
                                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 660,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                    children: [
-                                        "Scrub time = ⌈(T",
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("sub", {
-                                            children: "grp"
-                                        }, void 0, false, {
-                                            fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                            lineNumber: 661,
-                                            columnNumber: 35
-                                        }, this),
-                                        " − 1.0) ÷ ",
-                                        ECLSS_SCRUB_RATE,
-                                        "⌉ s"
-                                    ]
-                                }, void 0, true, {
-                                    fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                                    lineNumber: 661,
+                                    lineNumber: 496,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                            lineNumber: 655,
+                            lineNumber: 491,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-                    lineNumber: 653,
+                    lineNumber: 489,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-            lineNumber: 532,
+            lineNumber: 386,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/post-fire/PostFireClearanceDashboard.tsx",
-        lineNumber: 531,
+        lineNumber: 385,
         columnNumber: 5
     }, this);
 }
@@ -1341,34 +1074,356 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$t
 ;
 ;
 ;
-/* ------------------------------------------------------------------ */ /*  Constants                                                          */ /* ------------------------------------------------------------------ */ const TIMER_MAX = 300;
-/** Module inner dimensions (a box roughly ISS-destiny-module shaped). */ const MODULE_SIZE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](6, 4, 4);
+/* ------------------------------------------------------------------ */ /*  Constants                                                         */ /* ------------------------------------------------------------------ */ /** Module inner dimensions (a box roughly ISS-destiny-module shaped). */ const MODULE_SIZE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](6, 4, 4);
+const HALF = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](MODULE_SIZE.x / 2, MODULE_SIZE.y / 2, MODULE_SIZE.z / 2);
 /** HVAC vent intake location, on the +X bulkhead, slightly above centre. */ const VENT_POS = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](MODULE_SIZE.x / 2 - 0.01, 0.6, 0);
-const PARTICLE_COUNT = 1500;
-const COLOR_HOT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff2a1a"); // critical red
-const COLOR_SAFE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#2a8fff"); // ambient blue
+/** Where the fire burns: centre of the module floor. */ const FIRE_POS = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](0, -MODULE_SIZE.y / 2 + 0.02, 0);
+const PARTICLE_COUNT = 2500;
+const EMBER_COUNT = 250;
+const FRAME_SAFE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#2a8fff"); // ambient blue
+const FRAME_TOXIC = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff2a1a"); // critical red
 const SMOKE_SAFE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#22ff66"); // tGrp <= 1.0
 const SMOKE_TOXIC = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff2a1a"); // tGrp >= 3.0
 const SMOKE_IDLE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#aab4bc"); // neutral grey
-const FLAME_DEEP = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff7a00"); // orange
-const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ffd23f"); // yellow
 /** Smoothing rate (higher = snappier) for state transitions. */ const DAMP = 3;
-/* ------------------------------------------------------------------ */ /*  Helpers                                                            */ /* ------------------------------------------------------------------ */ /** clamp + normalise: 1 = full heat/smoke, 0 = scrubbed clean */ function scrubProgress(scrubTimer) {
-    return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].clamp(scrubTimer / TIMER_MAX, 0, 1);
+/* ------------------------------------------------------------------ */ /*  Helpers                                                           */ /* ------------------------------------------------------------------ */ /** 0 at tGrp <= 1.0 (safe), 1 at tGrp >= 3.0 (critical). */ function toxicityFactor(tGrp) {
+    return __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].clamp((tGrp - 1.0) / 2.0, 0, 1);
 }
 /** Green (safe) -> Red (toxic) mapped from the toxicity index. */ function toxicityColor(tGrp, out) {
-    const t = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].clamp((tGrp - 1.0) / 2.0, 0, 1); // 1.0 -> 0, 3.0 -> 1
-    return out.lerpColors(SMOKE_SAFE, SMOKE_TOXIC, t);
+    return out.lerpColors(SMOKE_SAFE, SMOKE_TOXIC, toxicityFactor(tGrp));
 }
-/* ------------------------------------------------------------------ */ /*  Module wireframe with thermal colour lerp                          */ /* ------------------------------------------------------------------ */ function ModuleFrame({ progress }) {
+/**
+ * Soft radial-gradient sprite generated on an HTML5 canvas — no external
+ * asset needed. White core fading to transparent edge.
+ */ function createParticleTexture() {
+    const size = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0.0, "rgba(255,255,255,1.0)");
+    gradient.addColorStop(0.25, "rgba(255,255,255,0.85)");
+    gradient.addColorStop(0.55, "rgba(255,255,255,0.30)");
+    gradient.addColorStop(1.0, "rgba(255,255,255,0.0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    const texture = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CanvasTexture"](canvas);
+    texture.needsUpdate = true;
+    return texture;
+}
+/* ------------------------------------------------------------------ */ /*  GLSL — procedural fire (fbm noise shaped into flames)             */ /* ------------------------------------------------------------------ */ const fireVertexShader = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const fireFragmentShader = /* glsl */ `
+  uniform float uTime;
+  uniform float uIntensity;
+  uniform vec3 uColorDeep;
+  uniform vec3 uColorMid;
+  uniform vec3 uColorTip;
+  varying vec2 vUv;
+
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+  }
+  float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x),
+      u.y
+    );
+  }
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float a = 0.5;
+    for (int i = 0; i < 5; i++) {
+      v += a * noise(p);
+      p = p * 2.03 + vec2(1.7, 9.2);
+      a *= 0.5;
+    }
+    return v;
+  }
+
+  void main() {
+    vec2 uv = vUv;
+    float column = smoothstep(0.0, 0.12, uv.y) * (1.0 - smoothstep(0.55, 0.95, uv.y));
+    vec2 q = vec2(uv.x * 3.0, uv.y * 2.2 - uTime * 1.6);
+    float turb = fbm(q + fbm(q * 1.8 + uTime * 0.3) * 0.9);
+    float cx = abs(uv.x - 0.5) * 2.0;
+    float body = smoothstep(0.9, 0.15, cx + turb * 0.55 - uv.y * 0.35);
+    float shape = body * column * smoothstep(0.0, 0.25, uv.y + turb * 0.25);
+    float t = clamp(shape * 1.6, 0.0, 1.0);
+    vec3 col = mix(uColorDeep, uColorMid, smoothstep(0.15, 0.55, t));
+    col = mix(col, uColorTip, smoothstep(0.6, 0.95, t));
+    float alpha = clamp(shape * 1.4, 0.0, 1.0) * uIntensity;
+    if (alpha < 0.01) discard;
+    gl_FragColor = vec4(col * (1.2 + t * 1.5), alpha);
+  }
+`;
+/* ------------------------------------------------------------------ */ /*  Volumetric fire: crossed shader planes + hot core + firelight      */ /* ------------------------------------------------------------------ */ function FireEffect({ simulationState }) {
+    const groupRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const lightRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const light2Ref = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const coreRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const coreMat = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const intensity = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(0);
+    const uniforms = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>({
+            uTime: {
+                value: 0
+            },
+            uIntensity: {
+                value: 0
+            },
+            uColorDeep: {
+                value: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#c1120f")
+            },
+            uColorMid: {
+                value: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff7a00")
+            },
+            uColorTip: {
+                value: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ffe066")
+            }
+        }), []);
+    const planes = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
+        const geo = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["PlaneGeometry"](2.4, 2.2, 1, 1);
+        return [
+            0,
+            Math.PI / 4,
+            Math.PI / 2,
+            3 * Math.PI / 4
+        ].map((rotY)=>[
+                geo,
+                rotY
+            ]);
+    }, []);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])(({ clock }, delta)=>{
+        const dt = Math.min(delta, 0.05);
+        const t = clock.elapsedTime;
+        const target = simulationState === "BURNING" ? 1 : 0;
+        intensity.current = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(intensity.current, target, 4, dt);
+        uniforms.uTime.value = t;
+        uniforms.uIntensity.value = intensity.current;
+        const g = groupRef.current;
+        if (!g) return;
+        g.visible = intensity.current > 0.01;
+        const flicker = 0.75 + 0.25 * Math.sin(t * 11) * Math.sin(t * 5.7 + 1.3) + 0.1 * Math.sin(t * 23);
+        const I = intensity.current * flicker;
+        if (lightRef.current) {
+            lightRef.current.intensity = 14 * I;
+            lightRef.current.position.set(FIRE_POS.x + Math.sin(t * 7) * 0.15, FIRE_POS.y + 0.8, FIRE_POS.z + Math.cos(t * 6) * 0.15);
+        }
+        if (light2Ref.current) {
+            light2Ref.current.intensity = 6 * I;
+        }
+        if (coreMat.current) {
+            coreMat.current.opacity = 0.85 * intensity.current;
+        }
+        if (coreRef.current) {
+            const s = intensity.current * (1 + 0.06 * Math.sin(t * 9));
+            coreRef.current.scale.setScalar(Math.max(s, 0.0001));
+        }
+    });
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("group", {
+        position: FIRE_POS.toArray(),
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("group", {
+                ref: groupRef,
+                children: [
+                    planes.map(([geo, rotY], i)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
+                            geometry: geo,
+                            rotation: [
+                                0,
+                                rotY,
+                                0
+                            ],
+                            position: [
+                                0,
+                                1.05,
+                                0
+                            ],
+                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("shaderMaterial", {
+                                vertexShader: fireVertexShader,
+                                fragmentShader: fireFragmentShader,
+                                uniforms: uniforms,
+                                transparent: true,
+                                depthWrite: false,
+                                blending: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AdditiveBlending"],
+                                side: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DoubleSide"]
+                            }, void 0, false, {
+                                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                                lineNumber: 232,
+                                columnNumber: 13
+                            }, this)
+                        }, i, false, {
+                            fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                            lineNumber: 231,
+                            columnNumber: 11
+                        }, this)),
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
+                        ref: coreRef,
+                        position: [
+                            0,
+                            0.12,
+                            0
+                        ],
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("icosahedronGeometry", {
+                                args: [
+                                    0.34,
+                                    2
+                                ]
+                            }, void 0, false, {
+                                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                                lineNumber: 245,
+                                columnNumber: 11
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshBasicMaterial", {
+                                ref: coreMat,
+                                color: "#ffd9a0",
+                                transparent: true,
+                                opacity: 0,
+                                blending: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AdditiveBlending"],
+                                depthWrite: false
+                            }, void 0, false, {
+                                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                                lineNumber: 246,
+                                columnNumber: 11
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                        lineNumber: 244,
+                        columnNumber: 9
+                    }, this)
+                ]
+            }, void 0, true, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 229,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pointLight", {
+                ref: lightRef,
+                color: "#ff8c3b",
+                distance: 12,
+                decay: 2,
+                position: [
+                    0,
+                    0.9,
+                    0
+                ],
+                intensity: 0
+            }, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 257,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pointLight", {
+                ref: light2Ref,
+                color: "#ff3300",
+                distance: 7,
+                decay: 2,
+                position: [
+                    0,
+                    0.35,
+                    0
+                ],
+                intensity: 0
+            }, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 265,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+        lineNumber: 228,
+        columnNumber: 5
+    }, this);
+}
+/* ------------------------------------------------------------------ */ /*  Ember sparks                                                       */ /* ------------------------------------------------------------------ */ function EmberSparks({ simulationState }) {
+    const matRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const intensity = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(0);
+    const { geometry, seeds } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
+        const positions = new Float32Array(EMBER_COUNT * 3);
+        const seeds = new Float32Array(EMBER_COUNT * 2);
+        for(let i = 0; i < EMBER_COUNT; i++){
+            seeds[i * 2] = Math.random();
+            seeds[i * 2 + 1] = 0.6 + Math.random() * 1.4;
+        }
+        const g = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferGeometry"]();
+        g.setAttribute("position", new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferAttribute"](positions, 3));
+        return {
+            geometry: g,
+            seeds
+        };
+    }, []);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])(({ clock }, delta)=>{
+        const dt = Math.min(delta, 0.05);
+        const t = clock.elapsedTime;
+        const target = simulationState === "BURNING" ? 1 : 0;
+        intensity.current = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(intensity.current, target, 4, dt);
+        if (matRef.current) matRef.current.opacity = intensity.current;
+        const attr = geometry.getAttribute("position");
+        const arr = attr.array;
+        for(let i = 0; i < EMBER_COUNT; i++){
+            const i3 = i * 3;
+            const phase = seeds[i * 2];
+            const speed = seeds[i * 2 + 1];
+            const life = (t * 0.28 * speed + phase) % 1;
+            const angle = phase * Math.PI * 2 + t * (0.4 + phase);
+            const radius = 0.15 + life * (0.35 + phase * 0.35);
+            arr[i3] = FIRE_POS.x + Math.cos(angle) * radius;
+            arr[i3 + 1] = FIRE_POS.y + life * (2.0 * speed);
+            arr[i3 + 2] = FIRE_POS.z + Math.sin(angle) * radius;
+        }
+        attr.needsUpdate = true;
+    });
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("points", {
+        geometry: geometry,
+        frustumCulled: false,
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pointsMaterial", {
+            ref: matRef,
+            color: "#ffcc66",
+            size: 0.045,
+            transparent: true,
+            opacity: 0,
+            sizeAttenuation: true,
+            depthWrite: false,
+            blending: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AdditiveBlending"]
+        }, void 0, false, {
+            fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+            lineNumber: 323,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+        lineNumber: 322,
+        columnNumber: 5
+    }, this);
+}
+/* ------------------------------------------------------------------ */ /*  Module wireframe (unchanged)                                       */ /* ------------------------------------------------------------------ */ function ModuleFrame({ simulationState, tGrp }) {
     const wireMat = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     const frameMat = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const liveColor = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#2a8fff"));
+    const target = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"](), []);
     const edges = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["EdgesGeometry"](new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BoxGeometry"](...MODULE_SIZE.toArray())), []);
-    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])(()=>{
-        // Lerp critical red -> ambient blue as the timer counts down.
-        const c = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]().lerpColors(COLOR_SAFE, COLOR_HOT, progress);
-        if (wireMat.current) wireMat.current.color.copy(c);
-        if (frameMat.current) frameMat.current.color.copy(c);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])((_, delta)=>{
+        const dt = Math.min(delta, 0.05);
+        if (simulationState === "BURNING") {
+            target.copy(FRAME_TOXIC);
+        } else {
+            target.lerpColors(FRAME_SAFE, FRAME_TOXIC, toxicityFactor(tGrp));
+        }
+        liveColor.current.lerp(target, 1 - Math.exp(-DAMP * dt));
+        if (wireMat.current) wireMat.current.color.copy(liveColor.current);
+        if (frameMat.current) frameMat.current.color.copy(liveColor.current);
     });
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("group", {
         children: [
@@ -1378,7 +1433,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                         args: MODULE_SIZE.toArray()
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 87,
+                        lineNumber: 373,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshBasicMaterial", {
@@ -1389,13 +1444,13 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                         depthWrite: false
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 88,
+                        lineNumber: 374,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 86,
+                lineNumber: 372,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("lineSegments", {
@@ -1405,12 +1460,12 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                     linewidth: 1
                 }, void 0, false, {
                     fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                    lineNumber: 99,
+                    lineNumber: 383,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 98,
+                lineNumber: 382,
                 columnNumber: 7
             }, this),
             [
@@ -1438,7 +1493,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                             ]
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                            lineNumber: 105,
+                            lineNumber: 387,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshBasicMaterial", {
@@ -1447,13 +1502,13 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                             opacity: 0.4
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                            lineNumber: 108,
+                            lineNumber: 390,
                             columnNumber: 11
                         }, this)
                     ]
                 }, x, true, {
                     fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                    lineNumber: 104,
+                    lineNumber: 386,
                     columnNumber: 9
                 }, this)),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("gridHelper", {
@@ -1470,22 +1525,21 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 ]
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 113,
+                lineNumber: 393,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-        lineNumber: 84,
+        lineNumber: 371,
         columnNumber: 5
     }, this);
 }
-/* ------------------------------------------------------------------ */ /*  HVAC vent grate on the +X bulkhead                                 */ /* ------------------------------------------------------------------ */ function HvacVent({ progress }) {
+/* ------------------------------------------------------------------ */ /*  HVAC vent (unchanged)                                              */ /* ------------------------------------------------------------------ */ function HvacVent() {
     const glow = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])(({ clock })=>{
-        // gentle pulsing suction glow while smoke remains
         if (glow.current) {
-            glow.current.intensity = 2 + progress * 6 + Math.sin(clock.elapsedTime * 4) * progress * 2;
+            glow.current.intensity = 3 + Math.sin(clock.elapsedTime * 4) * 1.5;
         }
     });
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("group", {
@@ -1506,7 +1560,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 140,
+                        lineNumber: 415,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshStandardMaterial", {
@@ -1515,13 +1569,13 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                         roughness: 0.4
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 141,
+                        lineNumber: 416,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 139,
+                lineNumber: 414,
                 columnNumber: 7
             }, this),
             [
@@ -1544,24 +1598,24 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                             ]
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                            lineNumber: 147,
+                            lineNumber: 420,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshStandardMaterial", {
                             color: "#0af0ff",
                             emissive: "#0af0ff",
-                            emissiveIntensity: 0.6 + progress * 1.4,
+                            emissiveIntensity: 1.2,
                             metalness: 0.5,
                             roughness: 0.3
                         }, void 0, false, {
                             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                            lineNumber: 148,
+                            lineNumber: 421,
                             columnNumber: 11
                         }, this)
                     ]
                 }, y, true, {
                     fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                    lineNumber: 146,
+                    lineNumber: 419,
                     columnNumber: 9
                 }, this)),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("mesh", {
@@ -1579,23 +1633,23 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                         ]
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 160,
+                        lineNumber: 431,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("meshBasicMaterial", {
                         color: "#0af0ff",
                         transparent: true,
-                        opacity: 0.35 + progress * 0.4,
+                        opacity: 0.5,
                         side: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DoubleSide"]
                     }, void 0, false, {
                         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                        lineNumber: 161,
+                        lineNumber: 432,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 159,
+                lineNumber: 430,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pointLight", {
@@ -1605,200 +1659,263 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 decay: 2
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 169,
+                lineNumber: 439,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-        lineNumber: 137,
+        lineNumber: 413,
         columnNumber: 5
     }, this);
 }
-/* ------------------------------------------------------------------ */ /*  Smoke / fire particle system (BufferGeometry + Points)             */ /* ------------------------------------------------------------------ */ function SmokeParticles({ progress, simulationState, tGrp }) {
-    const pointsRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+/* ------------------------------------------------------------------ */ /*  Smoke + fire column particles                                      */ /*                                                                     */ /*  BURNING:        particles spawn at the fire, flicker upward in a   */ /*                  convection column and gather into a thick layer    */ /*                  at the ceiling.                                    */ /*                                                                     */ /*  ASSESSMENT /    particles drift EVERYWHERE inside the module —     */ /*  SCRUBBING:      full 3D wandering on X, Y and Z, respawning at     */ /*                  random points so the whole volume stays filled.    */ /* ------------------------------------------------------------------ */ /** Height at which particles stop rising and begin to gather. */ const CEILING_Y = HALF.y - 0.12;
+/** Gathering zone = top 10% of module height. */ const GATHER_START_Y = CEILING_Y - MODULE_SIZE.y * 0.1;
+/* Height-based colour ramp: white -> yellow -> orange -> dark smoke. */ const RAMP_WHITE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#fff6d8");
+const RAMP_YELLOW = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ffd23f");
+const RAMP_ORANGE = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#ff7a00");
+const SMOKE_DARK = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#101318");
+/** Slightly luminous slate so the gathered layer reads under additive blending. */ const SMOKE_THICK = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#7c8590");
+function SmokeParticles({ simulationState, tGrp }) {
     const matRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
-    const { positions, drifts } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
+    const texture = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>createParticleTexture(), []);
+    /* ---------------- particle buffers ---------------- */ const { geometry, drifts, seeds, linger, alphas } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         const positions = new Float32Array(PARTICLE_COUNT * 3);
+        const colors = new Float32Array(PARTICLE_COUNT * 3);
         const drifts = new Float32Array(PARTICLE_COUNT * 3);
+        const seeds = new Float32Array(PARTICLE_COUNT);
+        const linger = new Float32Array(PARTICLE_COUNT);
+        const alphas = new Float32Array(PARTICLE_COUNT).fill(1);
         for(let i = 0; i < PARTICLE_COUNT; i++){
             const i3 = i * 3;
-            // random point inside the module, inset slightly from the walls
             positions[i3] = (Math.random() - 0.5) * (MODULE_SIZE.x - 0.4);
             positions[i3 + 1] = (Math.random() - 0.5) * (MODULE_SIZE.y - 0.4);
             positions[i3 + 2] = (Math.random() - 0.5) * (MODULE_SIZE.z - 0.4);
-            // per-particle random ambient drift
             drifts[i3] = (Math.random() - 0.5) * 0.12;
-            drifts[i3 + 1] = (Math.random() - 0.5) * 0.12 + 0.02; // slight buoyancy
+            drifts[i3 + 1] = (Math.random() - 0.5) * 0.12;
             drifts[i3 + 2] = (Math.random() - 0.5) * 0.12;
+            seeds[i] = Math.random() * 100;
         }
-        return {
-            positions,
-            drifts
-        };
-    }, []);
-    const geometry = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>{
         const g = new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferGeometry"]();
         g.setAttribute("position", new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferAttribute"](positions, 3));
-        return g;
-    }, [
-        positions
-    ]);
-    // scratch objects, allocated once
+        g.setAttribute("color", new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferAttribute"](colors, 3));
+        g.setAttribute("aAlpha", new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["BufferAttribute"](alphas, 1));
+        return {
+            geometry: g,
+            drifts,
+            seeds,
+            linger,
+            alphas
+        };
+    }, []);
     const scratch = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useMemo"])(()=>({
-            toVent: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](),
             p: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](),
             randomSpawn: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](),
-            floorSpawn: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](),
-            targetColor: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#aab4bc")
+            fireSpawn: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Vector3"](),
+            c: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"](),
+            c2: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"](),
+            tint: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]()
         }), []);
     /**
    * Smoothed live values — every visual/kinematic parameter eases toward
    * its per-state target each frame, so transitions never hard-snap.
    */ const smooth = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])({
-        color: new __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Color"]("#aab4bc"),
         opacity: 0,
-        size: 0.045,
+        size: 0.05,
         speed: 1,
         upBias: 0.02,
-        ventPull: 0,
-        floorSpawnMix: 0
+        fireSpawnMix: 0
     });
+    /* Inject a per-particle alpha attribute into the PointsMaterial shader. */ const attachMaterial = (mat)=>{
+        if (!mat || matRef.current === mat) return;
+        matRef.current = mat;
+        mat.onBeforeCompile = (shader)=>{
+            shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute float aAlpha;\nvarying float vAlpha;").replace("#include <fog_vertex>", "#include <fog_vertex>\nvAlpha = aAlpha;");
+            shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vAlpha;").replace("#include <opaque_fragment>", "diffuseColor.a *= vAlpha;\n#include <opaque_fragment>");
+        };
+        mat.customProgramCacheKey = ()=>"smoke-aalpha-v1";
+        mat.needsUpdate = true;
+    };
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$events$2d$9ce18a08$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__F__as__useFrame$3e$__["useFrame"])(({ clock }, delta)=>{
         const dt = Math.min(delta, 0.05); // clamp against tab-switch spikes
+        const t = clock.elapsedTime;
         const s = smooth.current;
-        const { targetColor } = scratch;
-        /* ---------------- per-state targets ---------------- */ let tOpacity = 0;
-        let tSize = 0.045;
+        const { p, randomSpawn, fireSpawn, c, c2, tint } = scratch;
+        /* ---------------- per-state targets (unchanged state machine) ------ */ let tOpacity = 0;
+        let tSize = 0.05;
         let tSpeed = 1;
         let tUpBias = 0.02;
-        let tVentPull = 0;
-        let tFloorSpawn = 0;
+        let tFireSpawn = 0;
         switch(simulationState){
             case "BURNING":
                 {
-                    // flickering orange <-> yellow flame palette
-                    const t = clock.elapsedTime;
-                    const flicker = 0.5 + 0.5 * Math.sin(t * 13 + Math.sin(t * 7.3) * 2);
-                    targetColor.lerpColors(FLAME_DEEP, FLAME_BRIGHT, flicker);
-                    tOpacity = 0.9;
-                    tSize = 0.06;
-                    tSpeed = 6; // rapid turbulent motion
-                    tUpBias = 2.4; // strong buoyant rise
-                    tVentPull = 0;
-                    tFloorSpawn = 1; // spawn from the centre of the floor
+                    tOpacity = 0.55;
+                    tSize = 0.14;
+                    tSpeed = 2.0;
+                    tUpBias = 1.2; // buoyant convection column
+                    tFireSpawn = 1;
                     break;
                 }
             case "ASSESSMENT":
-                {
-                    // room fills with smoke tinted by the live toxicity index
-                    toxicityColor(tGrp, targetColor);
-                    tOpacity = 0.5;
-                    tSize = 0.05;
-                    tSpeed = 1;
-                    tUpBias = 0.02;
-                    tVentPull = 0.08; // faint background airflow
-                    break;
-                }
             case "SCRUBBING":
                 {
-                    // same toxicity tint, but ECLSS fades/shrinks smoke as timer -> 0
-                    toxicityColor(tGrp, targetColor);
-                    tOpacity = 0.5 * progress;
-                    tSize = 0.05 * (0.35 + 0.65 * progress);
-                    tSpeed = 1;
-                    tUpBias = 0.02;
-                    tVentPull = 0.35 + (1 - progress) * 0.5; // suction ramps up
+                    tOpacity = 0.85; // Increased for better visibility
+                    tSize = 0.12; // Increased for better visibility
+                    tSpeed = 1.4; // livelier drift fills the volume faster
+                    tUpBias = 0.0; // no net buoyancy — smoke goes every direction
+                    tFireSpawn = 0; // respawn anywhere in the module
                     break;
                 }
             default:
                 {
-                    // IDLE — dormant, particles hidden
-                    targetColor.copy(SMOKE_IDLE);
                     break;
                 }
         }
-        /* ---------------- smooth toward targets ---------------- */ s.color.lerp(targetColor, 1 - Math.exp(-DAMP * dt));
-        s.opacity = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.opacity, tOpacity, DAMP, dt);
+        /* ---------------- smooth toward targets ---------------- */ s.opacity = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.opacity, tOpacity, DAMP, dt);
         s.size = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.size, tSize, DAMP, dt);
         s.speed = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.speed, tSpeed, DAMP, dt);
         s.upBias = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.upBias, tUpBias, DAMP, dt);
-        s.ventPull = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.ventPull, tVentPull, DAMP, dt);
-        s.floorSpawnMix = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.floorSpawnMix, tFloorSpawn, DAMP, dt);
-        // fully hidden -> skip the simulation pass entirely
+        s.fireSpawnMix = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].damp(s.fireSpawnMix, tFireSpawn, DAMP, dt);
         if (s.opacity < 0.004) {
             if (matRef.current) matRef.current.opacity = 0;
             return;
         }
         /* ---------------- advect particles ---------------- */ const posAttr = geometry.getAttribute("position");
+        const colAttr = geometry.getAttribute("color");
+        const alpAttr = geometry.getAttribute("aAlpha");
         const arr = posAttr.array;
-        const { toVent, p, randomSpawn, floorSpawn } = scratch;
+        const carr = colAttr.array;
+        const aarr = alpAttr.array;
+        const burning = simulationState === "BURNING";
         const respawn = (v)=>{
             randomSpawn.set((Math.random() - 0.5) * (MODULE_SIZE.x - 0.6), (Math.random() - 0.5) * (MODULE_SIZE.y - 0.6), (Math.random() - 0.5) * (MODULE_SIZE.z - 0.6));
-            const r = Math.sqrt(Math.random()) * 0.9;
+            // spawn just above the fire, small radius
+            const r = Math.sqrt(Math.random()) * 0.4;
             const a = Math.random() * Math.PI * 2;
-            floorSpawn.set(Math.cos(a) * r, -MODULE_SIZE.y / 2 + 0.1, Math.sin(a) * r);
-            // blend factor itself is smoothed, so spawn zones migrate gradually
-            v.lerpVectors(randomSpawn, floorSpawn, s.floorSpawnMix);
+            fireSpawn.set(FIRE_POS.x + Math.cos(a) * r, FIRE_POS.y + 0.3 + Math.random() * 0.4, FIRE_POS.z + Math.sin(a) * r);
+            v.lerpVectors(randomSpawn, fireSpawn, s.fireSpawnMix);
         };
         for(let i = 0; i < PARTICLE_COUNT; i++){
             const i3 = i * 3;
+            const seed = seeds[i];
             p.set(arr[i3], arr[i3 + 1], arr[i3 + 2]);
-            // ambient turbulence (scaled by the smoothed state speed)
-            p.x += drifts[i3] * s.speed * dt;
-            p.y += (drifts[i3 + 1] * s.speed + s.upBias) * dt;
-            p.z += drifts[i3 + 2] * s.speed * dt;
-            // shared suction vector toward the HVAC vent
-            if (s.ventPull > 0.01) {
-                toVent.copy(VENT_POS).sub(p);
-                const dist = toVent.length();
-                if (dist > 1e-4) {
-                    toVent.normalize().multiplyScalar(s.ventPull * dt * Math.min(dist, 1.5));
-                    p.add(toVent);
+            /* ---------------- ceiling gathering (BURNING only) ------------- */ // After the fire stops, smoke no longer collects at the ceiling —
+            // it drifts everywhere instead.
+            const inGatherZone = burning && p.y > GATHER_START_Y;
+            linger[i] = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].clamp(linger[i] + (inGatherZone ? dt * 1.6 : -dt * 2.5), 0, 1);
+            const l = linger[i];
+            if (burning) {
+                /* ------------- rising fire column with flicker --------------- */ if (l < 1) {
+                    const flickX = Math.sin(t * 6.3 + seed) * 0.35 + Math.sin(t * 15.7 + seed * 2.1) * 0.15;
+                    const flickZ = Math.cos(t * 5.1 + seed * 1.3) * 0.35 + Math.cos(t * 17.3 + seed) * 0.15;
+                    const flickY = Math.sin(t * 9.4 + seed * 3.7) * 0.25;
+                    p.x += (drifts[i3] * s.speed + flickX) * (1 - l * 0.8) * dt;
+                    p.y += ((drifts[i3 + 1] * s.speed + s.upBias) * (1 - l * 0.97) + flickY * 0.3) * dt;
+                    p.z += (drifts[i3 + 2] * s.speed + flickZ) * (1 - l * 0.8) * dt;
+                    if (inGatherZone) {
+                        p.y = Math.min(p.y, CEILING_Y);
+                    }
                 }
-                if (dist < 0.35) respawn(p); // captured by the vent
+                if (l > 0.05) {
+                    // gathered: near-zero vertical motion, lateral X/Z drift,
+                    // clamped just under the ceiling so the layer builds up
+                    p.y += Math.sin(t * 0.8 + seed * 5.0) * 0.02 * l * dt;
+                    p.x += (Math.sin(t * 0.7 + seed * 2.0) * 0.25 + (Math.random() - 0.5) * 0.35) * l * dt * s.speed;
+                    p.z += (Math.cos(t * 0.9 + seed * 4.0) * 0.25 + (Math.random() - 0.5) * 0.35) * l * dt * s.speed;
+                    p.y = Math.min(p.y, CEILING_Y);
+                }
+            } else {
+                /* ------------- post-fire: smoke drifts EVERYWHERE --------------
+         * Full 3D wandering — X, Y and Z — so the smoke fills the whole
+         * module volume instead of pooling at the ceiling. Particles that
+         * leave the box respawn at a random point inside it, keeping the
+         * entire space uniformly smoky for as long as the state lasts.
+         */ p.x += (drifts[i3] * s.speed + Math.sin(t * 0.9 + seed) * 0.1 + (Math.random() - 0.5) * 0.08) * dt;
+                p.y += (drifts[i3 + 1] * s.speed + s.upBias + Math.sin(t * 0.7 + seed * 2.0) * 0.1 + (Math.random() - 0.5) * 0.08) * dt;
+                p.z += (drifts[i3 + 2] * s.speed + Math.cos(t * 1.1 + seed * 3.0) * 0.1 + (Math.random() - 0.5) * 0.08) * dt;
             }
-            // ceiling / wall containment — recycle out-of-bounds particles
-            if (p.y > MODULE_SIZE.y / 2 - 0.1 || Math.abs(p.x) > MODULE_SIZE.x / 2 - 0.1 || Math.abs(p.z) > MODULE_SIZE.z / 2 - 0.1) {
+            /* ---------------- bounds handling ---------------- */ const outX = Math.abs(p.x) > HALF.x - 0.12;
+            const outZ = Math.abs(p.z) > HALF.z - 0.12;
+            const outFloor = p.y < -HALF.y + 0.1;
+            const outCeiling = p.y > HALF.y - 0.1;
+            if ((outX || outZ || outFloor || outCeiling) && l < 0.3) {
+                // free particle escaped — recycle it back into the simulation
                 respawn(p);
+                linger[i] = 0;
+            } else {
+                // gathered particles are clamped softly so the ceiling layer persists
+                if (outX) p.x = Math.sign(p.x) * (HALF.x - 0.12);
+                if (outZ) p.z = Math.sign(p.z) * (HALF.z - 0.12);
+                if (outFloor) p.y = -HALF.y + 0.1;
+                if (outCeiling) p.y = CEILING_Y;
             }
             arr[i3] = p.x;
             arr[i3 + 1] = p.y;
             arr[i3 + 2] = p.z;
+            /* ---------------- dynamic colour ramp ---------------- */ // h: 0 at floor -> 1 at ceiling
+            const h = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["MathUtils"].clamp((p.y + HALF.y) / MODULE_SIZE.y, 0, 1);
+            if (burning) {
+                // white -> yellow -> orange -> dark smoke, keyed to height
+                if (h < 0.25) {
+                    c.lerpColors(RAMP_WHITE, RAMP_YELLOW, h / 0.25);
+                } else if (h < 0.5) {
+                    c.lerpColors(RAMP_YELLOW, RAMP_ORANGE, (h - 0.25) / 0.25);
+                } else if (h < 0.8) {
+                    c.lerpColors(RAMP_ORANGE, SMOKE_DARK, (h - 0.5) / 0.3);
+                } else {
+                    c.copy(SMOKE_DARK);
+                }
+                // thickening: gathered smoke becomes a denser, visible slate haze
+                c2.copy(SMOKE_DARK).lerp(SMOKE_THICK, l * 0.75);
+                c.lerp(c2, l * 0.9);
+                aarr[i] = 0.55 + 0.45 * l; // opacity grows as the layer lingers
+            } else {
+                // post-fire: smoke everywhere, tinted by the live tGrp index.
+                // Colour is height-independent so the volume reads uniformly.
+                toxicityColor(tGrp, tint).multiplyScalar(0.85); // Boosted for visibility
+                c.copy(SMOKE_DARK).lerp(tint, 0.9); // Biased toward bright tint
+                c2.copy(tint).multiplyScalar(0.7); // Brightened shimmer
+                c.lerp(c2, 0.3 + 0.3 * Math.sin(t * 0.5 + seed));
+                aarr[i] = 0.75 + 0.25 * Math.sin(t * 0.4 + seed * 1.7); // Increased base alpha
+            }
+            carr[i3] = c.r;
+            carr[i3 + 1] = c.g;
+            carr[i3 + 2] = c.b;
         }
         posAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
+        alpAttr.needsUpdate = true;
         /* ---------------- push smoothed values to the material ---------------- */ if (matRef.current) {
-            matRef.current.color.copy(s.color);
             matRef.current.opacity = s.opacity;
             matRef.current.size = s.size;
         }
     });
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("points", {
-        ref: pointsRef,
         geometry: geometry,
         frustumCulled: false,
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pointsMaterial", {
-            ref: matRef,
-            color: "#aab4bc",
-            size: 0.045,
+            ref: attachMaterial,
+            map: texture,
+            vertexColors: true,
+            color: "#ffffff",
+            size: 0.05,
             transparent: true,
             opacity: 0,
             sizeAttenuation: true,
             depthWrite: false,
-            blending: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["NormalBlending"]
+            blending: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$three$2f$build$2f$three$2e$core$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AdditiveBlending"]
         }, void 0, false, {
             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-            lineNumber: 377,
+            lineNumber: 787,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-        lineNumber: 376,
+        lineNumber: 786,
         columnNumber: 5
     }, this);
 }
-/* ------------------------------------------------------------------ */ /*  Scene                                                              */ /* ------------------------------------------------------------------ */ function ScannerScene({ simulationState, tGrp, scrubTimer }) {
-    const progress = scrubProgress(scrubTimer);
+/* ------------------------------------------------------------------ */ /*  Scene                                                              */ /* ------------------------------------------------------------------ */ function ScannerScene({ simulationState, tGrp }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("color", {
@@ -1808,7 +1925,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 ]
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 399,
+                lineNumber: 810,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("fog", {
@@ -1820,14 +1937,14 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 ]
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 400,
+                lineNumber: 811,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ambientLight", {
                 intensity: 0.25
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 402,
+                lineNumber: 813,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("directionalLight", {
@@ -1839,7 +1956,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 intensity: 0.6
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 403,
+                lineNumber: 814,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Stars$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Stars"], {
@@ -1851,7 +1968,7 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 speed: 0.4
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 405,
+                lineNumber: 816,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$OrbitControls$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["OrbitControls"], {
@@ -1860,47 +1977,59 @@ const FLAME_BRIGHT = new __TURBOPACK__imported__module__$5b$project$5d2f$node_mo
                 autoRotate: false
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 406,
+                lineNumber: 817,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$drei$2f$core$2f$Environment$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Environment"], {
                 preset: "night"
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 407,
+                lineNumber: 818,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(ModuleFrame, {
-                progress: progress
-            }, void 0, false, {
-                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 409,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(HvacVent, {
-                progress: progress
-            }, void 0, false, {
-                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 410,
-                columnNumber: 7
-            }, this),
-            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SmokeParticles, {
-                progress: progress,
                 simulationState: simulationState,
                 tGrp: tGrp
             }, void 0, false, {
                 fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-                lineNumber: 411,
+                lineNumber: 820,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(HvacVent, {}, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 821,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(FireEffect, {
+                simulationState: simulationState
+            }, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 822,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(EmberSparks, {
+                simulationState: simulationState
+            }, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 823,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SmokeParticles, {
+                simulationState: simulationState,
+                tGrp: tGrp
+            }, void 0, false, {
+                fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
+                lineNumber: 824,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-        lineNumber: 398,
+        lineNumber: 809,
         columnNumber: 5
     }, this);
 }
-function ThermalSmokeScanner3D({ simulationState, tGrp, scrubTimer }) {
+function ThermalSmokeScanner3D({ simulationState, tGrp }) {
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$react$2d$three$2f$fiber$2f$dist$2f$react$2d$three$2d$fiber$2e$esm$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["Canvas"], {
         camera: {
             position: [
@@ -1920,16 +2049,15 @@ function ThermalSmokeScanner3D({ simulationState, tGrp, scrubTimer }) {
         ],
         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(ScannerScene, {
             simulationState: simulationState,
-            tGrp: tGrp,
-            scrubTimer: scrubTimer
+            tGrp: tGrp
         }, void 0, false, {
             fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-            lineNumber: 431,
+            lineNumber: 843,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/components/post-fire/ThermalSmokeScanner3D.tsx",
-        lineNumber: 426,
+        lineNumber: 838,
         columnNumber: 5
     }, this);
 }
