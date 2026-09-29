@@ -1,0 +1,4 @@
+{
+  "/api/smac/route": "app/api/smac/route.js",
+  "/post-fire-clearance/page": "app/post-fire-clearance/page.js"
+}
